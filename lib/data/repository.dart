@@ -1,3 +1,9 @@
+import 'package:collection/collection.dart';
+
+import 'dart:typed_data';
+
+import 'package:dio/dio.dart' show FormData, MultipartFile;
+
 import '../core/api_client.dart';
 import 'models.dart';
 
@@ -68,7 +74,11 @@ class ListQuery {
     this.hitsPerPage = 25,
     this.sortField,
     this.sortAscending = true,
+    this.terms = const [],
   });
+
+  /// Extra field terms from the advanced search, e.g. `{field, operation, value}`.
+  final List<Json> terms;
 
   final String text;
   final int page;
@@ -82,31 +92,31 @@ class ListQuery {
     int? hitsPerPage,
     String? Function()? sortField,
     bool? sortAscending,
+    List<Json>? terms,
   }) => ListQuery(
     text: text ?? this.text,
     page: page ?? this.page,
     hitsPerPage: hitsPerPage ?? this.hitsPerPage,
     sortField: sortField != null ? sortField() : this.sortField,
     sortAscending: sortAscending ?? this.sortAscending,
+    terms: terms ?? this.terms,
   );
 
-  Json toRequest(String type) => {
-    'page': '$page',
-    'hitsperpage': '$hitsPerPage',
-    'query': {
-      'terms': [
-        text.trim().isEmpty
-            ? {'field': 'id', 'operation': 'matches', 'value': '*'}
-            : {
-                'field': 'description',
-                'operation': 'freeform',
-                'value': text.trim(),
-              },
-      ],
-    },
-    if (sortField != null)
-      '${type}sortby': '$sortField${sortAscending ? 'Up' : 'Down'}',
-  };
+  Json toRequest(String type) {
+    final t = <Json>[
+      if (text.trim().isNotEmpty)
+        {'field': 'description', 'operation': 'freeform', 'value': text.trim()},
+      ...terms,
+    ];
+    if (t.isEmpty) t.add({'field': 'id', 'operation': 'matches', 'value': '*'});
+    return {
+      'page': '$page',
+      'hitsperpage': '$hitsPerPage',
+      'query': {'terms': t},
+      if (sortField != null)
+        '${type}sortby': '$sortField${sortAscending ? 'Up' : 'Down'}',
+    };
+  }
 
   @override
   bool operator ==(Object other) =>
@@ -115,7 +125,8 @@ class ListQuery {
       other.page == page &&
       other.hitsPerPage == hitsPerPage &&
       other.sortField == sortField &&
-      other.sortAscending == sortAscending;
+      other.sortAscending == sortAscending &&
+      const DeepCollectionEquality().equals(other.terms, terms);
 
   @override
   int get hashCode =>
@@ -245,6 +256,54 @@ class SettingsRepository {
     {'searchtype': name},
     longRunning,
   );
+
+  Future<ActionResult> resetFields(String name) => _action(
+    'settings/datamanager/table/resetfields',
+    {'searchtype': name},
+    longRunning,
+  );
+
+  Future<ActionResult> resetData(String name) => _action(
+    'settings/datamanager/table/resetdata',
+    {'searchtype': name},
+    longRunning,
+  );
+
+  /// Deletes every record of the table.
+  Future<ActionResult> deleteAllRecords(String name) => _action(
+    'settings/datamanager/table/deleteall',
+    {'searchtype': name},
+    longRunning,
+  );
+
+  /// The table as CSV. [friendly] writes labels instead of ids.
+  Future<Uint8List> exportCsv(String name, {required bool friendly}) =>
+      api.getBytes(
+        'settings/datamanager/table/export/$name.csv'
+        '?searchtype=${Uri.encodeQueryComponent(name)}&friendly=$friendly',
+        receiveTimeout: longRunning,
+      );
+
+  Future<ActionResult> importFile(
+    String name, {
+    required Uint8List bytes,
+    required String fileName,
+  }) async {
+    final script = fileName.toLowerCase().endsWith('.json')
+        ? 'ImportJson.groovy'
+        : 'ImportCsvFile.groovy';
+    final res = await api.postMultipart(
+      'settings/datamanager/table/import/import',
+      () => FormData.fromMap({
+        'searchtype': name,
+        'scriptname': script,
+        'file': MultipartFile.fromBytes(bytes, filename: fileName),
+      }),
+      receiveTimeout: longRunning,
+    );
+    final r = res['response'];
+    return ActionResult(r is Map ? '${r['status'] ?? 'ok'}' : 'ok', res);
+  }
 
   Future<List<FieldDef>> fields(String searchType) async {
     final res = await api.getJson(

@@ -1,7 +1,9 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/download.dart';
 import '../../core/ph.dart';
 import '../../core/values.dart';
 import '../../data/models.dart';
@@ -72,26 +74,32 @@ class DatabasePage extends ConsumerWidget {
             children: [
               Row(
                 children: [
-                  SizedBox(
+                  // Type to filter; matches anywhere in the name.
+                  DropdownMenu<String>(
+                    key: ValueKey(current),
                     width: 280,
-                    child: DropdownButtonFormField<String>(
-                      key: ValueKey(current),
-                      initialValue: current,
-                      isExpanded: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Table',
-                        isDense: true,
-                      ),
-                      items: [
-                        for (final t in list)
-                          DropdownMenuItem(value: t, child: Text(t)),
-                      ],
-                      onChanged: (t) => t == null
-                          ? null
-                          : context.go(
-                              '/database?table=${Uri.encodeQueryComponent(t)}',
-                            ),
-                    ),
+                    menuHeight: 360,
+                    label: const Text('Table'),
+                    initialSelection: current,
+                    requestFocusOnTap: true,
+                    enableFilter: true,
+                    filterCallback: (entries, text) {
+                      final q = text.trim().toLowerCase();
+                      if (q.isEmpty) return entries;
+                      return [
+                        for (final e in entries)
+                          if (e.label.toLowerCase().contains(q)) e,
+                      ];
+                    },
+                    dropdownMenuEntries: [
+                      for (final t in list)
+                        DropdownMenuEntry(value: t, label: t),
+                    ],
+                    onSelected: (t) => t == null || t == current
+                        ? null
+                        : context.go(
+                            '/database?table=${Uri.encodeQueryComponent(t)}',
+                          ),
                   ),
                   const Spacer(),
                   OutlinedButton.icon(
@@ -166,6 +174,7 @@ class _DataTabState extends ConsumerState<_DataTab> {
   var _page = 1;
   String? _sort;
   var _asc = true;
+  List<Json> _terms = const [];
 
   Store get _store => Store.lists(widget.table);
 
@@ -176,8 +185,56 @@ class _DataTabState extends ConsumerState<_DataTab> {
       page: _page,
       sortField: _sort,
       sortAscending: _asc,
+      terms: _terms,
     ),
   );
+
+  Future<void> _search(List<FieldDef> fields) async {
+    final terms = await showDialog<List<Json>>(
+      context: context,
+      builder: (_) => _SearchDialog(
+        fields: [
+          for (final f in fields)
+            if (!f.internal && !f.isComplex) f,
+        ],
+        terms: _terms,
+      ),
+    );
+    if (terms == null) return;
+    setState(() {
+      _terms = terms;
+      _page = 1;
+    });
+  }
+
+  Future<void> _import() async {
+    final picked = await FilePicker.pickFiles(
+      dialogTitle: 'Import into ${widget.table}',
+    );
+    if (picked.isEmpty || !mounted) return;
+    final file = picked.first.xFile;
+    final bytes = await file.readAsBytes();
+    if (!mounted) return;
+    await runServerAction(
+      context,
+      () async =>
+          (await ref
+                  .read(repositoryProvider)
+                  .importFile(widget.table, bytes: bytes, fileName: file.name))
+              .message,
+      success: 'Import complete',
+    );
+    ref.invalidate(recordsProvider);
+  }
+
+  Future<void> _export({required bool friendly}) =>
+      runServerAction(context, () async {
+        final bytes = await ref
+            .read(repositoryProvider)
+            .exportCsv(widget.table, friendly: friendly);
+        saveBytes(bytes, '${widget.table}.csv', mimeType: 'text/csv');
+        return '';
+      }, success: 'Export ready');
 
   Future<void> _open(List<FieldDef> fields, [Json? row]) async {
     final repo = ref.read(repositoryProvider);
@@ -239,26 +296,80 @@ class _DataTabState extends ConsumerState<_DataTab> {
             _page = 1;
           }),
           actions: [
-            OutlinedButton(
-              onPressed: () => _tableAction(
-                'Reindex ${widget.table}?',
-                'Rebuilds the search index for this table.',
-                () => repo.reindexTable(widget.table),
-                'Reindexed',
+            OutlinedButton.icon(
+              onPressed: () => _search(fields),
+              icon: Icon(
+                Ph.magnifyingGlass,
+                size: 16,
+                color: _terms.isEmpty ? null : context.scheme.primary,
               ),
-              child: const Text('Reindex'),
+              label: Text(
+                _terms.isEmpty ? 'Search' : 'Search (${_terms.length})',
+              ),
             ),
-            OutlinedButton(
+            if (_terms.isNotEmpty)
+              TextButton(
+                onPressed: () => setState(() {
+                  _terms = const [];
+                  _page = 1;
+                }),
+                child: const Text('Clear'),
+              ),
+            OutlinedButton.icon(
               onPressed: () => _tableAction(
-                'Delete table ${widget.table}?',
-                'All of its records are removed.',
-                () => repo.deleteTable(widget.table),
-                'Table deleted',
+                'Reset fields of ${widget.table}?',
+                'Restores the default field definitions. Export the data first.',
+                () => repo.resetFields(widget.table),
+                'Fields reset',
               ),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: context.scheme.error,
+              icon: const Icon(Ph.arrowCounterClockwise, size: 16),
+              label: const Text('Reset fields'),
+            ),
+            OutlinedButton.icon(
+              onPressed: () => _tableAction(
+                'Reset data of ${widget.table}?',
+                'Restores the table to its default data. Export the data first.',
+                () => repo.resetData(widget.table),
+                'Data reset',
               ),
-              child: const Text('Delete table'),
+              icon: const Icon(Ph.arrowCounterClockwise, size: 16),
+              label: const Text('Reset data'),
+            ),
+            _ActionsMenu(
+              total: page.value?.total,
+              onSelected: (a) {
+                final t = widget.table;
+                final n = page.value?.total;
+                switch (a) {
+                  case _Act.import:
+                    _import();
+                  case _Act.export:
+                    _export(friendly: false);
+                  case _Act.exportText:
+                    _export(friendly: true);
+                  case _Act.reindex:
+                    _tableAction(
+                      'Reindex $t?',
+                      'Rebuilds the search index for this table.',
+                      () => repo.reindexTable(t),
+                      'Reindexed',
+                    );
+                  case _Act.deleteAll:
+                    _tableAction(
+                      'Delete ${n ?? 'all'} records?',
+                      'Removes every record of $t. Export the data first if you may need it.',
+                      () => repo.deleteAllRecords(t),
+                      'Records deleted',
+                    );
+                  case _Act.deleteTable:
+                    _tableAction(
+                      'Delete table $t?',
+                      'All of its records are removed.',
+                      () => repo.deleteTable(t),
+                      'Table deleted',
+                    );
+                }
+              },
             ),
             FilledButton.icon(
               onPressed: () => _open(fields),
@@ -414,6 +525,143 @@ class _FieldsTab extends ConsumerWidget {
           rowKey: (r) => '${r['id']}',
         ),
       ),
+    );
+  }
+}
+
+enum _Act { import, export, exportText, reindex, deleteAll, deleteTable }
+
+/// The table's less frequent actions in one menu.
+class _ActionsMenu extends StatelessWidget {
+  const _ActionsMenu({required this.onSelected, this.total});
+  final void Function(_Act action) onSelected;
+  final int? total;
+
+  PopupMenuItem<_Act> _item(
+    _Act a,
+    IconData icon,
+    String label, {
+    Color? color,
+  }) => PopupMenuItem(
+    value: a,
+    child: Row(
+      children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(width: 10),
+        Text(label, style: TextStyle(color: color)),
+      ],
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final danger = context.scheme.error;
+    return PopupMenuButton<_Act>(
+      tooltip: 'Table actions',
+      onSelected: onSelected,
+      position: PopupMenuPosition.under,
+      itemBuilder: (_) => [
+        _item(_Act.import, Ph.uploadSimple, 'Import'),
+        _item(_Act.export, Ph.downloadSimple, 'Export'),
+        _item(_Act.exportText, Ph.fileText, 'Export text'),
+        const PopupMenuDivider(),
+        _item(_Act.reindex, Ph.arrowsClockwise, 'Reindex'),
+        const PopupMenuDivider(),
+        _item(
+          _Act.deleteAll,
+          Ph.trash,
+          total == null ? 'Delete all records' : 'Delete $total records',
+          color: danger,
+        ),
+        _item(_Act.deleteTable, Ph.trash, 'Delete table', color: danger),
+      ],
+      child: IgnorePointer(
+        child: OutlinedButton.icon(
+          onPressed: () {},
+          icon: const Icon(Ph.dotsThree, size: 18),
+          label: const Text('Actions'),
+        ),
+      ),
+    );
+  }
+}
+
+/// Advanced search: one box per field. Filled boxes become terms.
+class _SearchDialog extends StatefulWidget {
+  const _SearchDialog({required this.fields, required this.terms});
+  final List<FieldDef> fields;
+  final List<Json> terms;
+
+  @override
+  State<_SearchDialog> createState() => _SearchDialogState();
+}
+
+class _SearchDialogState extends State<_SearchDialog> {
+  late final Map<String, TextEditingController> _c = {
+    for (final f in widget.fields)
+      f.id: TextEditingController(
+        text:
+            '${widget.terms.firstWhere((t) => t['field'] == f.id, orElse: () => const {})['value'] ?? ''}',
+      ),
+  };
+
+  @override
+  void dispose() {
+    for (final c in _c.values) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  List<Json> _build() => [
+    for (final f in widget.fields)
+      if (_c[f.id]!.text.trim().isNotEmpty)
+        {
+          'field': f.id,
+          // Free text fields match part of the value; lists, numbers and dates need the exact value.
+          'operation': f.isList || f.isNumber || f.isDate || f.isBoolean
+              ? 'matches'
+              : 'contains',
+          'value': _c[f.id]!.text.trim(),
+        },
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Search'),
+      content: SizedBox(
+        width: 520,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final f in widget.fields)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: TextField(
+                    controller: _c[f.id],
+                    decoration: InputDecoration(
+                      labelText: f.label(),
+                      isDense: true,
+                    ),
+                    onSubmitted: (_) => Navigator.pop(context, _build()),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, _build()),
+          child: const Text('Search'),
+        ),
+      ],
     );
   }
 }

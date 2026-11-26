@@ -129,23 +129,28 @@ class ApiClient {
     FormData Function() buildForm, {
     void Function(int sent, int total)? onProgress,
     CancelToken? cancelToken,
+    Duration? receiveTimeout,
   }) => _send(
     () async => dio.post(
       absolute(path),
       data: buildForm(),
       onSendProgress: onProgress,
       cancelToken: cancelToken,
-      options: Options(headers: await authHeaders()),
+      options: Options(
+        headers: await authHeaders(),
+        receiveTimeout: receiveTimeout,
+      ),
     ),
   );
 
   /// Raw bytes (for originals that need auth, PDFs, downloads).
-  Future<Uint8List> getBytes(String url) async {
+  Future<Uint8List> getBytes(String url, {Duration? receiveTimeout}) async {
     final res = await dio.get<List<int>>(
       absolute(url),
       options: Options(
         headers: await authHeaders(),
         responseType: ResponseType.bytes,
+        receiveTimeout: receiveTimeout,
       ),
     );
     if ((res.statusCode ?? 500) >= 400) {

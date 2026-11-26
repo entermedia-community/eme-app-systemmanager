@@ -30,6 +30,37 @@ void main() {
       expect(r['groupsortby'], 'nameDown');
     });
 
+    test('field terms are sent with the text term', () {
+      final r = const ListQuery(
+        text: 'x',
+        terms: [
+          {'field': 'name', 'operation': 'contains', 'value': 'ann'},
+        ],
+      ).toRequest('user');
+      final terms = (r['query'] as Map)['terms'] as List;
+      expect(terms.length, 2);
+      expect(terms.last, {
+        'field': 'name',
+        'operation': 'contains',
+        'value': 'ann',
+      });
+    });
+
+    test('terms are part of the equality', () {
+      const a = ListQuery(
+        terms: [
+          {'field': 'a', 'operation': 'contains', 'value': '1'},
+        ],
+      );
+      const b = ListQuery(
+        terms: [
+          {'field': 'a', 'operation': 'contains', 'value': '1'},
+        ],
+      );
+      expect(a, b);
+      expect(a, isNot(const ListQuery()));
+    });
+
     test('has value equality so it can key a provider family', () {
       expect(
         const ListQuery(text: 'a', page: 2),
