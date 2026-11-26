@@ -39,6 +39,20 @@ void main() {
     });
   });
 
+  group('Store', () {
+    test('equal stores are the same provider key', () {
+      // Built twice from a runtime value, like the Database tab does on every build.
+      final table = ['a', 'b'].join();
+      expect(Store.lists(table), Store.lists(table));
+      expect(Store.lists(table).hashCode, Store.lists(table).hashCode);
+      expect(Store.lists('x'), isNot(Store.lists('y')));
+      expect(
+        (store: Store.lists(table), query: const ListQuery()),
+        (store: Store.lists(table), query: const ListQuery()),
+      );
+    });
+  });
+
   group('ActionResult', () {
     test('ok statuses', () {
       expect(const ActionResult('ok', {}).ok, isTrue);

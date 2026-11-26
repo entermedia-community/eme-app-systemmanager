@@ -29,6 +29,17 @@ class Store {
   final String _data;
   final String _create;
 
+  /// Value equality: a store built again on each build must be the same provider key.
+  @override
+  bool operator ==(Object other) =>
+      other is Store &&
+      other.type == type &&
+      other._search == _search &&
+      other._data == _data;
+
+  @override
+  int get hashCode => Object.hash(type, _search, _data);
+
   static const catalogSettings = Store.lists('catalogsettings');
   static const roles = Store.lists('settingsrole');
   static const permissions = Store.lists('permissionsapp');
