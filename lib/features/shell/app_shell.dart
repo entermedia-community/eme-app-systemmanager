@@ -135,10 +135,7 @@ class _Sidebar extends ConsumerWidget {
           children: [
             const Padding(
               padding: EdgeInsets.fromLTRB(16, 16, 16, 12),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: BrandMark(size: 30),
-              ),
+              child: BrandMark(size: 16),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),

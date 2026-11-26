@@ -83,8 +83,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Center(child: BrandMark(size: 44)),
-                const SizedBox(height: 28),
+                const Center(
+                  child: BrandMark(size: 30, fontSize: 20, vertical: true),
+                ),
+                const SizedBox(height: 16),
                 Card(
                   child: Padding(
                     padding: const EdgeInsets.all(24),

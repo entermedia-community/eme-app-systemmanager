@@ -16,6 +16,8 @@ Future<void> main() async {
   await initSdk(prefs.getString('serverUrl') ?? defaultServerUrl);
   runApp(
     ProviderScope(
+      // A failed request shows its error; it is not silently re-sent.
+      retry: (_, _) => null,
       overrides: [sharedPrefsProvider.overrideWithValue(prefs)],
       child: const EmeSystemApp(),
     ),

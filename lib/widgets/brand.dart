@@ -1,62 +1,48 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
 
 import '../theme/app_theme.dart';
 
 /// App mark: a rounded "E" tile plus the eMedia wordmark.
 class BrandMark extends StatelessWidget {
-  const BrandMark({super.key, this.size = 30, this.showText = true});
+  const BrandMark({
+    super.key,
+    this.size = 20,
+    this.fontSize,
+    this.showText = true,
+    this.vertical = false,
+  });
   final double size;
+  final double? fontSize;
   final bool showText;
+  final bool vertical;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Flex(
+      direction: vertical ? Axis.vertical : Axis.horizontal,
       mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Container(
-          width: size,
+        SizedBox(
+          width: size * 4.7,
           height: size,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(size * 0.28),
-            gradient: const LinearGradient(
-              colors: [Color(0xFF4C8DFF), Color(0xFF34C759)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            'E',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w800,
-              fontSize: size * 0.55,
-              height: 1,
-            ),
+          child: SvgPicture.asset(
+            'assets/icon/logo_dark.svg',
+            width: size * 4.7,
+            height: size,
           ),
         ),
         if (showText) ...[
-          SizedBox(width: size * 0.35),
-          Text.rich(
-            TextSpan(
-              children: [
-                TextSpan(
-                  text: 'eMedia',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    color: context.scheme.onSurface,
-                  ),
-                ),
-                TextSpan(
-                  text: ' Data',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w400,
-                    color: context.colors.muted,
-                  ),
-                ),
-              ],
+          SizedBox(width: 6),
+          Text(
+            'Data Manager',
+            style: TextStyle(
+              fontWeight: FontWeight.w400,
+              color: context.colors.muted,
+              fontSize: fontSize ?? size * 1.2,
+              letterSpacing: -0.3,
             ),
-            style: TextStyle(fontSize: size * 0.58, letterSpacing: -0.3),
           ),
         ],
       ],
