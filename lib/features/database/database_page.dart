@@ -74,32 +74,13 @@ class DatabasePage extends ConsumerWidget {
             children: [
               Row(
                 children: [
-                  // Type to filter; matches anywhere in the name.
-                  DropdownMenu<String>(
+                  _TablePicker(
                     key: ValueKey(current),
-                    width: 280,
-                    menuHeight: 360,
-                    label: const Text('Table'),
-                    initialSelection: current,
-                    requestFocusOnTap: true,
-                    enableFilter: true,
-                    filterCallback: (entries, text) {
-                      final q = text.trim().toLowerCase();
-                      if (q.isEmpty) return entries;
-                      return [
-                        for (final e in entries)
-                          if (e.label.toLowerCase().contains(q)) e,
-                      ];
-                    },
-                    dropdownMenuEntries: [
-                      for (final t in list)
-                        DropdownMenuEntry(value: t, label: t),
-                    ],
-                    onSelected: (t) => t == null || t == current
-                        ? null
-                        : context.go(
-                            '/database?table=${Uri.encodeQueryComponent(t)}',
-                          ),
+                    tables: list,
+                    current: current,
+                    onSelected: (t) => context.go(
+                      '/database?table=${Uri.encodeQueryComponent(t)}',
+                    ),
                   ),
                   const Spacer(),
                   OutlinedButton.icon(
@@ -662,6 +643,93 @@ class _SearchDialogState extends State<_SearchDialog> {
           child: const Text('Search'),
         ),
       ],
+    );
+  }
+}
+
+/// Type-to-filter table picker. Unlike DropdownMenu it builds only the rows on screen,
+/// so it stays fast with hundreds of tables.
+class _TablePicker extends StatelessWidget {
+  const _TablePicker({
+    super.key,
+    required this.tables,
+    required this.current,
+    required this.onSelected,
+  });
+  final List<String> tables;
+  final String? current;
+  final void Function(String table) onSelected;
+
+  static const _width = 280.0;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: _width,
+      child: Autocomplete<String>(
+        initialValue: TextEditingValue(text: current ?? ''),
+        optionsBuilder: (value) {
+          final q = value.text.trim().toLowerCase();
+          // Showing the open table's own name should not hide the other tables.
+          if (q.isEmpty || value.text == current) return tables;
+          return tables.where((t) => t.toLowerCase().contains(q));
+        },
+        onSelected: (t) {
+          if (t != current) onSelected(t);
+        },
+        fieldViewBuilder: (context, controller, focus, onSubmit) => TextField(
+          controller: controller,
+          focusNode: focus,
+          decoration: InputDecoration(
+            labelText: 'Table',
+            isDense: true,
+            suffixIcon: const Icon(Ph.caretDown, size: 14),
+          ),
+          onTap: () => controller.selection = TextSelection(
+            baseOffset: 0,
+            extentOffset: controller.text.length,
+          ),
+          onSubmitted: (_) => onSubmit(),
+        ),
+        optionsViewBuilder: (context, onSelect, options) => Align(
+          alignment: Alignment.topLeft,
+          child: Material(
+            elevation: 6,
+            borderRadius: BorderRadius.circular(8),
+            clipBehavior: Clip.antiAlias,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                maxHeight: 320,
+                maxWidth: _width,
+              ),
+              child: ListView.builder(
+                padding: EdgeInsets.zero,
+                shrinkWrap: true,
+                itemCount: options.length,
+                itemBuilder: (context, i) {
+                  final t = options.elementAt(i);
+                  return InkWell(
+                    onTap: () => onSelect(t),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                      child: Text(
+                        t,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontWeight: t == current ? FontWeight.w700 : null,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
