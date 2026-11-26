@@ -440,15 +440,12 @@ class _MappingErrorsDialog extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final errors = FutureProvider.autoDispose(
-      (r) => r.watch(repositoryProvider).mappingErrors(),
-    );
     return AlertDialog(
       title: const Text('Mapping conflicts'),
       content: SizedBox(
         width: 640,
         child: ref
-            .watch(errors)
+            .watch(mappingErrorsProvider)
             .when(
               loading: () => const SizedBox(
                 height: 80,
@@ -457,15 +454,34 @@ class _MappingErrorsDialog extends ConsumerWidget {
               error: (e, _) => Text('$e'),
               data: (list) => list.isEmpty
                   ? const Text('No errors detected')
-                  : ListView(
-                      shrinkWrap: true,
-                      children: [
-                        for (final e in list)
-                          ListTile(
-                            title: Text('${e['searchtype']}.${e['field']}'),
-                            subtitle: Text('${e['error']}'),
-                          ),
-                      ],
+                  : SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          for (final e in list)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 6),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '${e['searchtype']}.${e['field']}',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  SelectableText(
+                                    '${e['error']}',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: context.colors.muted,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
             ),
       ),
@@ -484,16 +500,13 @@ class _MappingsDialog extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final mappings = FutureProvider.autoDispose(
-      (r) => r.watch(repositoryProvider).mappings(),
-    );
     return AlertDialog(
       title: const Text('Elastic mappings'),
       content: SizedBox(
         width: 720,
         height: 480,
         child: ref
-            .watch(mappings)
+            .watch(mappingsProvider)
             .when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Text('$e'),
@@ -518,6 +531,26 @@ class _MappingsDialog extends ConsumerWidget {
 class _SnapshotsDialog extends ConsumerWidget {
   const _SnapshotsDialog();
 
+  Future<void> _restore(
+    BuildContext context,
+    WidgetRef ref,
+    String name,
+  ) async {
+    final ok = await confirm(
+      context,
+      title: 'Restore $name?',
+      message: 'Replaces the current database with this snapshot.',
+      action: 'Restore',
+    );
+    if (!ok || !context.mounted) return;
+    await runServerAction(
+      context,
+      () async =>
+          (await ref.read(repositoryProvider).restoreSnapshot(name)).message,
+      success: 'Snapshot restored',
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final snaps = ref.watch(snapshotsProvider);
@@ -530,39 +563,49 @@ class _SnapshotsDialog extends ConsumerWidget {
             height: 80,
             child: Center(child: CircularProgressIndicator()),
           ),
-          error: (e, _) => Text('$e'),
+          error: (e, _) => SelectableText('$e'),
           data: (list) => list.isEmpty
               ? const Text('No snapshots found')
-              : ListView(
-                  shrinkWrap: true,
-                  children: [
-                    for (final s in list)
-                      ListTile(
-                        title: Text('${s['name']}'),
-                        subtitle: Text('${s['shards']} sections'),
-                        trailing: OutlinedButton(
-                          onPressed: () async {
-                            final ok = await confirm(
-                              context,
-                              title: 'Restore ${s['name']}?',
-                              message: 'Replaces the current database with this snapshot.',
-                              action: 'Restore',
-                            );
-                            if (!ok || !context.mounted) return;
-                            await runServerAction(
-                              context,
-                              () async =>
-                                  (await ref
-                                          .read(repositoryProvider)
-                                          .restoreSnapshot('${s['name']}'))
-                                      .message,
-                              success: 'Snapshot restored',
-                            );
-                          },
-                          child: const Text('Restore'),
+              : SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (final s in list)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '${s['name']}',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    Text(
+                                      '${s['shards']} sections',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: context.colors.muted,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              OutlinedButton(
+                                onPressed: () =>
+                                    _restore(context, ref, '${s['name']}'),
+                                child: const Text('Restore'),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
         ),
       ),

@@ -56,3 +56,13 @@ final snapshotsProvider = FutureProvider.autoDispose<List<Json>>((ref) {
   ref.watch(sessionKeyProvider);
   return ref.watch(repositoryProvider).snapshots();
 });
+
+final mappingErrorsProvider = FutureProvider.autoDispose<List<Json>>((ref) {
+  ref.watch(sessionKeyProvider);
+  return ref.watch(repositoryProvider).mappingErrors();
+});
+
+final mappingsProvider = FutureProvider.autoDispose<String>((ref) {
+  ref.watch(sessionKeyProvider);
+  return ref.watch(repositoryProvider).mappings();
+});
