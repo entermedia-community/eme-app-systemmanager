@@ -112,10 +112,14 @@ class Pill extends StatelessWidget {
   }
 }
 
+/// Floating, centered snackbar, at most 500px wide.
 void showMessage(BuildContext context, String message, {bool error = false}) {
+  final screen = MediaQuery.sizeOf(context).width;
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
       content: Text(message),
+      behavior: SnackBarBehavior.floating,
+      width: screen - 32 < 500 ? screen - 32 : 500,
       backgroundColor: error ? Theme.of(context).colorScheme.error : null,
     ),
   );

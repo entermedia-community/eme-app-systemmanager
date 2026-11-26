@@ -125,20 +125,24 @@ class ServerPage extends ConsumerWidget {
                 label: 'View mapping conflicts',
                 hint: "If the reindex fails, conflicts may be found here",
                 tone: _Tone.tonal,
-                onTap: () => showDialog<void>(
-                  context: context,
-                  builder: (_) => const _MappingErrorsDialog(),
-                ),
+                onTap: () async {
+                  showDialog<void>(
+                    context: context,
+                    builder: (_) => const _MappingErrorsDialog(),
+                  );
+                },
               ),
               _ActionButton(
                 icon: Ph.fileText,
                 label: 'View Elastic mappings',
                 hint: 'The full elastic database mappings',
                 tone: _Tone.tonal,
-                onTap: () => showDialog<void>(
-                  context: context,
-                  builder: (_) => const _MappingsDialog(),
-                ),
+                onTap: () async {
+                  showDialog<void>(
+                    context: context,
+                    builder: (_) => const _MappingsDialog(),
+                  );
+                },
               ),
               _ActionButton(
                 icon: Ph.listChecks,
@@ -167,10 +171,12 @@ class ServerPage extends ConsumerWidget {
                 label: 'View snapshots',
                 hint: 'Snapshots store and restore the database state.',
                 tone: _Tone.tonal,
-                onTap: () => showDialog<void>(
-                  context: context,
-                  builder: (_) => const _SnapshotsDialog(),
-                ),
+                onTap: () async {
+                  showDialog<void>(
+                    context: context,
+                    builder: (_) => const _SnapshotsDialog(),
+                  );
+                },
               ),
             ],
           ),
@@ -329,7 +335,7 @@ class _Stack extends StatelessWidget {
   );
 }
 
-class _ActionButton extends StatelessWidget {
+class _ActionButton extends StatefulWidget {
   const _ActionButton({
     required this.icon,
     required this.label,
@@ -341,11 +347,31 @@ class _ActionButton extends StatelessWidget {
   final String label;
   final String hint;
   final _Tone tone;
-  final VoidCallback onTap;
+  final Future<void> Function() onTap;
+
+  @override
+  State<_ActionButton> createState() => _ActionButtonState();
+}
+
+class _ActionButtonState extends State<_ActionButton> {
+  var _busy = false;
+
+  Future<void> _run() async {
+    setState(() => _busy = true);
+    try {
+      await widget.onTap();
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final scheme = context.scheme;
+    final tone = widget.tone;
+    final icon = widget.icon;
+    final label = widget.label;
+    final hint = widget.hint;
     final (bg, fg) = switch (tone) {
       _Tone.primary => (scheme.primary, scheme.onPrimary),
       // Grayish: the common, safe action.
@@ -358,10 +384,12 @@ class _ActionButton extends StatelessWidget {
       _Tone.danger => (scheme.error.withValues(alpha: 0.14), scheme.error),
     };
     return FilledButton(
-      onPressed: onTap,
+      onPressed: _busy ? null : _run,
       style: FilledButton.styleFrom(
         backgroundColor: bg,
         foregroundColor: fg,
+        disabledBackgroundColor: bg,
+        disabledForegroundColor: fg,
         elevation: 0,
         alignment: Alignment.centerLeft,
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
@@ -369,7 +397,12 @@ class _ActionButton extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(icon, size: 20),
+          SizedBox.square(
+            dimension: 20,
+            child: _busy
+                ? CircularProgressIndicator(strokeWidth: 2.2, color: fg)
+                : Icon(icon, size: 20),
+          ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(

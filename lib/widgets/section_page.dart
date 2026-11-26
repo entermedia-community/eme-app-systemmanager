@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../core/ph.dart';
 import '../theme/app_theme.dart';
+import 'common.dart';
 
 /// Standard page frame: padded body, optional search box and action buttons above the content.
 class SectionPage extends StatelessWidget {
@@ -70,16 +71,12 @@ Future<void> runServerAction(
   Future<String> Function() action, {
   required String success,
 }) async {
-  final messenger = ScaffoldMessenger.of(context);
-  final errorColor = Theme.of(context).colorScheme.error;
   try {
     final detail = await action();
-    messenger.showSnackBar(
-      SnackBar(content: Text(detail.isEmpty ? success : '$success ($detail)')),
-    );
+    if (context.mounted) {
+      showMessage(context, detail.isEmpty ? success : '$success ($detail)');
+    }
   } catch (e) {
-    messenger.showSnackBar(
-      SnackBar(backgroundColor: errorColor, content: Text('$e')),
-    );
+    if (context.mounted) showMessage(context, '$e', error: true);
   }
 }

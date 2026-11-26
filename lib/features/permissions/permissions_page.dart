@@ -60,9 +60,7 @@ class _PermissionsPageState extends ConsumerState<PermissionsPage> {
         _selected = {};
       });
     } catch (e) {
-      if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('$e')));
+      if (mounted) showMessage(context, '$e', error: true);
     }
   }
 
@@ -81,9 +79,7 @@ class _PermissionsPageState extends ConsumerState<PermissionsPage> {
         _selected = null;
       });
     } catch (e) {
-      if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('$e')));
+      if (mounted) showMessage(context, '$e', error: true);
     }
   }
 
