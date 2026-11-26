@@ -22,7 +22,9 @@ class PermissionsPage extends ConsumerStatefulWidget {
 class _PermissionsPageState extends ConsumerState<PermissionsPage> {
   String? _roleId;
   Set<String>? _selected;
-  var _busy = false;
+  Set<String> _saved = {};
+  var _saving = false;
+  var _again = false;
 
   String _label(Json r) =>
       displayValue(r['name']).isEmpty ? '${r['id']}' : displayValue(r['name']);
@@ -31,19 +33,39 @@ class _PermissionsPageState extends ConsumerState<PermissionsPage> {
     setState(() {
       _roleId = '${role['id']}';
       _selected = valueIds(role['permissions']).toSet();
+      _saved = {..._selected!};
     });
   }
 
-  Future<void> _save() async {
-    setState(() => _busy = true);
-    await runServerAction(context, () async {
-      final repo = ref.read(repositoryProvider);
-      await repo.save(Store.roles, _roleId, {
-        'permissions': _selected!.toList(),
-      });
-      return '';
-    }, success: 'Permissions saved');
-    if (mounted) setState(() => _busy = false);
+  /// Saves on every tick. One request at a time; a tick made meanwhile is sent right after.
+  Future<void> _autosave() async {
+    if (_saving) {
+      _again = true;
+      return;
+    }
+    _saving = true;
+    try {
+      do {
+        _again = false;
+        final roleId = _roleId!;
+        final sent = _selected!.toList();
+        try {
+          await ref.read(repositoryProvider).save(Store.roles, roleId, {
+            'permissions': sent,
+          });
+          _saved = sent.toSet();
+        } catch (e) {
+          // Put the boxes back to what the server has.
+          if (mounted) {
+            setState(() => _selected = {..._saved});
+            showMessage(context, 'Could not save: $e', error: true);
+          }
+          _again = false;
+        }
+      } while (_again && mounted);
+    } finally {
+      _saving = false;
+    }
     ref.invalidate(allRecordsProvider);
   }
 
@@ -58,6 +80,7 @@ class _PermissionsPageState extends ConsumerState<PermissionsPage> {
       setState(() {
         _roleId = id;
         _selected = {};
+        _saved = {};
       });
     } catch (e) {
       if (mounted) showMessage(context, '$e', error: true);
@@ -92,7 +115,8 @@ class _PermissionsPageState extends ConsumerState<PermissionsPage> {
       allRecordsProvider((store: Store.permissions, sort: 'ordering')),
     );
     return SectionPage(
-      subtitle: 'Choose a role, then tick what it may do.',
+      subtitle:
+          'Choose a role, then tick what it may do. Changes save as you tick.',
       actions: [
         OutlinedButton.icon(
           onPressed: _add,
@@ -107,11 +131,6 @@ class _PermissionsPageState extends ConsumerState<PermissionsPage> {
             ),
             icon: const Icon(Ph.trash, size: 16),
             label: const Text('Delete role'),
-          ),
-        if (_roleId != null)
-          FilledButton(
-            onPressed: _busy ? null : _save,
-            child: const Text('Save'),
           ),
       ],
       child: roles.when(
@@ -155,7 +174,10 @@ class _PermissionsPageState extends ConsumerState<PermissionsPage> {
                         data: (permList) => _PermissionList(
                           permissions: permList,
                           selected: _selected!,
-                          onChanged: () => setState(() {}),
+                          onChanged: () {
+                            setState(() {});
+                            _autosave();
+                          },
                         ),
                       ),
               ),
