@@ -123,6 +123,7 @@ class ServerPage extends ConsumerWidget {
               _ActionButton(
                 icon: Ph.warning,
                 label: 'View mapping conflicts',
+                hint: "If the reindex fails, conflicts may be found here",
                 tone: _Tone.tonal,
                 onTap: () => showDialog<void>(
                   context: context,
@@ -132,6 +133,7 @@ class ServerPage extends ConsumerWidget {
               _ActionButton(
                 icon: Ph.fileText,
                 label: 'View Elastic mappings',
+                hint: 'The full elastic database mappings',
                 tone: _Tone.tonal,
                 onTap: () => showDialog<void>(
                   context: context,
@@ -202,54 +204,42 @@ class ServerPage extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Rarely needed.',
-                style: TextStyle(color: c.muted, fontSize: 12.5),
+              SizedBox(
+                width: 300,
+                child: _ActionButton(
+                  icon: Ph.magnifyingGlass,
+                  label: info.value?['logallsearches'] == true
+                      ? 'Search logs: on'
+                      : 'Search logs: off',
+                  hint: 'Toggle logging of every search.',
+                  tone: _Tone.tonal,
+                  onTap: () => _act(
+                    context,
+                    ref,
+                    title: 'Toggle search logging?',
+                    message: 'Turns logging of every search on or off.',
+                    run: (r) => r.toggleSearchLogs(),
+                    done: 'Search logging changed',
+                  ),
+                ),
               ),
-              const SizedBox(height: 8),
-              Divider(color: c.shellBorder),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                children: [
-                  SizedBox(
-                    width: 300,
-                    child: _ActionButton(
-                      icon: Ph.magnifyingGlass,
-                      label: info.value?['logallsearches'] == true
-                          ? 'Search logs: on'
-                          : 'Search logs: off',
-                      hint: 'Toggle logging of every search.',
-                      tone: _Tone.tonal,
-                      onTap: () => _act(
-                        context,
-                        ref,
-                        title: 'Toggle search logging?',
-                        message: 'Turns logging of every search on or off.',
-                        run: (r) => r.toggleSearchLogs(),
-                        done: 'Search logging changed',
-                      ),
-                    ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: 300,
+                child: _ActionButton(
+                  icon: Ph.crown,
+                  label: 'Change Elasticsearch master',
+                  hint: 'Forces this cluster to be master, then reindexes.',
+                  tone: _Tone.tonal,
+                  onTap: () => _act(
+                    context,
+                    ref,
+                    title: 'Make this node the master?',
+                    message: 'Forces this cluster to become the master and reindexes everything.',
+                    run: (r) => r.makeMaster(),
+                    done: 'Master changed',
                   ),
-                  SizedBox(
-                    width: 300,
-                    child: _ActionButton(
-                      icon: Ph.crown,
-                      label: 'Change Elasticsearch master',
-                      hint: 'Forces this cluster to be master, then reindexes.',
-                      tone: _Tone.tonal,
-                      onTap: () => _act(
-                        context,
-                        ref,
-                        title: 'Make this node the master?',
-                        message: 'Forces this cluster to become the master and reindexes everything.',
-                        run: (r) => r.makeMaster(),
-                        done: 'Master changed',
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ],
           ),
@@ -345,11 +335,11 @@ class _ActionButton extends StatelessWidget {
     required this.label,
     required this.tone,
     required this.onTap,
-    this.hint,
+    required this.hint,
   });
   final IconData icon;
   final String label;
-  final String? hint;
+  final String hint;
   final _Tone tone;
   final VoidCallback onTap;
 
@@ -392,18 +382,17 @@ class _ActionButton extends StatelessWidget {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                if (hint != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Text(
-                      hint!,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w400,
-                        color: fg.withValues(alpha: 0.75),
-                      ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(
+                    hint,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w400,
+                      color: fg.withValues(alpha: 0.75),
                     ),
                   ),
+                ),
               ],
             ),
           ),
