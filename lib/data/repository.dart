@@ -313,6 +313,12 @@ class SettingsRepository {
     return [for (final r in _list(res['results'])) FieldDef(r)];
   }
 
+  /// The bean name and Elasticsearch mapping of a table.
+  Future<Json> elasticInfo(String searchType) => api.getJson(
+    'settings/datamanager/elastic/info',
+    query: {'searchtype': searchType},
+  );
+
   Future<void> addField(String table, String label, {String? dataType}) async {
     await api.postForm('settings/datamanager/fields/addnew', {
       'searchtype': table,

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -114,7 +116,7 @@ class _TableView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Column(
         children: [
           const Align(
@@ -124,7 +126,8 @@ class _TableView extends ConsumerWidget {
               tabAlignment: TabAlignment.start,
               tabs: [
                 Tab(text: 'Data'),
-                Tab(text: 'Fields'),
+                Tab(text: 'Customize Fields'),
+                Tab(text: 'Elastic System Info'),
               ],
             ),
           ),
@@ -133,6 +136,7 @@ class _TableView extends ConsumerWidget {
               children: [
                 _DataTab(table: table),
                 _FieldsTab(table: table),
+                _ElasticTab(table: table),
               ],
             ),
           ),
@@ -303,7 +307,7 @@ class _DataTabState extends ConsumerState<_DataTab> {
                 () => repo.resetFields(widget.table),
                 'Fields reset',
               ),
-              icon: const Icon(Ph.arrowCounterClockwise, size: 16),
+              icon: const Icon(Ph.rows, size: 16),
               label: const Text('Reset fields'),
             ),
             OutlinedButton.icon(
@@ -313,7 +317,7 @@ class _DataTabState extends ConsumerState<_DataTab> {
                 () => repo.resetData(widget.table),
                 'Data reset',
               ),
-              icon: const Icon(Ph.arrowCounterClockwise, size: 16),
+              icon: const Icon(Ph.database, size: 16),
               label: const Text('Reset data'),
             ),
             _ActionsMenu(
@@ -505,6 +509,44 @@ class _FieldsTab extends ConsumerWidget {
           total: list.length,
           rowKey: (r) => '${r['id']}',
         ),
+      ),
+    );
+  }
+}
+
+class _ElasticTab extends ConsumerWidget {
+  const _ElasticTab({required this.table});
+  final String table;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final info = ref.watch(elasticInfoProvider(table));
+    return SectionPage(
+      child: info.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => ErrorState(
+          error: e,
+          onRetry: () => ref.invalidate(elasticInfoProvider(table)),
+        ),
+        data: (i) {
+          final mapping = i['mapping'];
+          return SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Bean name: ${i['beanname'] ?? ''}'),
+                const SizedBox(height: 12),
+                SelectableText(
+                  mapping == null
+                      ? 'No mapping in the index yet.'
+                      : const JsonEncoder.withIndent('  ').convert(mapping),
+                  style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
