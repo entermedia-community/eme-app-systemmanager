@@ -36,11 +36,11 @@ class BrandMark extends StatelessWidget {
         if (showText) ...[
           SizedBox(width: 6),
           Text(
-            'Data Manager',
+            'System Manager',
             style: TextStyle(
               fontWeight: FontWeight.w400,
               color: context.colors.muted,
-              fontSize: fontSize ?? size * 1.2,
+              fontSize: fontSize ?? size,
               letterSpacing: -0.3,
             ),
           ),
