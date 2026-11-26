@@ -29,6 +29,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   generate: true
@@ -45,3 +46,12 @@ flutter:
     - family: PhosphorFill
       fonts:
         - asset: assets/fonts/phosphor/Phosphor-Fill.ttf
+
+flutter_launcher_icons:
+  android: false
+  ios: false
+  web:
+    generate: true
+    image_path: "assets/icon/webicon.png"
+    background_color: "#14161a"
+    theme_color: "#34c759"
