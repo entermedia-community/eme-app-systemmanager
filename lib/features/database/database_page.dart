@@ -1,17 +1,18 @@
 import 'dart:convert';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:eme_app_sdk/eme_app_sdk.dart' show FieldValueView;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/download.dart';
 import '../../core/ph.dart';
-import '../../core/values.dart';
 import '../../data/models.dart';
 import '../../data/providers.dart';
 import '../../data/repository.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/asset_preview.dart';
 import '../../widgets/common.dart';
 import '../../widgets/data_table.dart';
 import '../../widgets/record_dialog.dart';
@@ -273,8 +274,8 @@ class _DataTabState extends ConsumerState<_DataTab> {
       data: (fields) {
         final shown = [
           for (final f in fields)
-            if (!f.internal && !f.isComplex && f.id != 'id') f,
-        ].take(6).toList();
+            if (!f.internal && f.id != 'id') f,
+        ];
         return SectionPage(
           search: (t) => setState(() {
             _text = t;
@@ -376,9 +377,16 @@ class _DataTabState extends ConsumerState<_DataTab> {
                     f.id,
                     f.label(),
                     flex: 2,
-                    cell: (_, r) => Text(
-                      displayValue(r[f.id]),
-                      overflow: TextOverflow.ellipsis,
+                    minWidth: 160,
+                    cell: (_, r) => Align(
+                      alignment: Alignment.centerLeft,
+                      child: FieldValueView(
+                        fieldId: f.id,
+                        value: r[f.id],
+                        datatype: f.datatype,
+                        rendertype: f.rendertype,
+                        assetBuilder: (_, id) => AssetPreview(assetId: id),
+                      ),
                     ),
                   ),
               ],

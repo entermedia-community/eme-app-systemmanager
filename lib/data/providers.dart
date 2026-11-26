@@ -47,11 +47,13 @@ final tableFieldsProvider = FutureProvider.autoDispose
       return ref.watch(repositoryProvider).fields(table);
     });
 
-final elasticInfoProvider = FutureProvider.autoDispose
-    .family<Json, String>((ref, table) {
-      ref.watch(sessionKeyProvider);
-      return ref.watch(repositoryProvider).elasticInfo(table);
-    });
+final elasticInfoProvider = FutureProvider.autoDispose.family<Json, String>((
+  ref,
+  table,
+) {
+  ref.watch(sessionKeyProvider);
+  return ref.watch(repositoryProvider).elasticInfo(table);
+});
 
 final serverInfoProvider = FutureProvider.autoDispose<Json>((ref) {
   ref.watch(sessionKeyProvider);
@@ -72,3 +74,8 @@ final mappingsProvider = FutureProvider.autoDispose<String>((ref) {
   ref.watch(sessionKeyProvider);
   return ref.watch(repositoryProvider).mappings();
 });
+
+final assetPreviewPathProvider = FutureProvider.autoDispose
+    .family<String?, String>(
+      (ref, id) => ref.watch(repositoryProvider).assetPreviewPath(id),
+    );

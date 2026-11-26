@@ -12,8 +12,10 @@ class TableColumn {
     this.flex = 1,
     this.cell,
     this.sortable = true,
+    this.minWidth = 120,
   });
   final String id;
+  final double minWidth;
   final String label;
   final int flex;
   final bool sortable;
@@ -64,85 +66,99 @@ class SettingsTable extends StatelessWidget {
               borderRadius: BorderRadius.circular(10),
             ),
             clipBehavior: Clip.antiAlias,
-            child: Column(
-              children: [
-                Container(
-                  color: c.subtle,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 10,
-                  ),
-                  child: Row(
-                    children: [
-                      for (final col in columns)
-                        Expanded(
-                          flex: col.flex,
-                          child: InkWell(
-                            onTap: onSort != null && col.sortable
-                                ? () => onSort!(col.id)
-                                : null,
-                            child: Row(
-                              children: [
-                                Flexible(
-                                  child: Text(
-                                    col.label,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
-                                      color: c.muted,
-                                    ),
-                                  ),
-                                ),
-                                if (sortField == col.id)
-                                  Icon(
-                                    sortAscending ? Ph.caretUp : Ph.caretDown,
-                                    size: 12,
-                                    color: c.muted,
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: ListView.separated(
-                    itemCount: rows.length,
-                    separatorBuilder: (_, _) =>
-                        Divider(height: 1, color: c.shellBorder),
-                    itemBuilder: (context, i) {
-                      final row = rows[i];
-                      return InkWell(
-                        key: rowKey == null ? null : ValueKey(rowKey!(row)),
-                        onTap: onTap == null ? null : () => onTap!(row),
-                        hoverColor: c.subtle,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 11,
-                          ),
-                          child: Row(
-                            children: [
-                              for (final col in columns)
-                                Expanded(
-                                  flex: col.flex,
-                                  child: col.cell != null
-                                      ? col.cell!(context, row)
-                                      : Text(
-                                          displayValue(row[col.id]),
-                                          overflow: TextOverflow.ellipsis,
+            child: LayoutBuilder(
+              builder: (context, box) {
+                // Columns keep a minimum width; the table scrolls sideways past that.
+                final need =
+                    28.0 +
+                    columns.fold<double>(0, (n, col) => n + col.minWidth);
+                final table = Column(
+                  children: [
+                    Container(
+                      color: c.subtle,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                      child: Row(
+                        children: [
+                          for (final col in columns)
+                            Expanded(
+                              flex: col.flex,
+                              child: InkWell(
+                                onTap: onSort != null && col.sortable
+                                    ? () => onSort!(col.id)
+                                    : null,
+                                child: Row(
+                                  children: [
+                                    Flexible(
+                                      child: Text(
+                                        col.label,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: c.muted,
                                         ),
+                                      ),
+                                    ),
+                                    if (sortField == col.id)
+                                      Icon(
+                                        sortAscending
+                                            ? Ph.caretUp
+                                            : Ph.caretDown,
+                                        size: 12,
+                                        color: c.muted,
+                                      ),
+                                  ],
                                 ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: ListView.separated(
+                        itemCount: rows.length,
+                        separatorBuilder: (_, _) =>
+                            Divider(height: 1, color: c.shellBorder),
+                        itemBuilder: (context, i) {
+                          final row = rows[i];
+                          return InkWell(
+                            key: rowKey == null ? null : ValueKey(rowKey!(row)),
+                            onTap: onTap == null ? null : () => onTap!(row),
+                            hoverColor: c.subtle,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 11,
+                              ),
+                              child: Row(
+                                children: [
+                                  for (final col in columns)
+                                    Expanded(
+                                      flex: col.flex,
+                                      child: col.cell != null
+                                          ? col.cell!(context, row)
+                                          : Text(
+                                              displayValue(row[col.id]),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                );
+                if (need <= box.maxWidth) return table;
+                return _HScroll(
+                  child: SizedBox(width: need, child: table),
+                );
+              },
             ),
           ),
         ),
@@ -174,6 +190,42 @@ class SettingsTable extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+/// Horizontal scroller whose bar is always visible and can be dragged with the mouse.
+class _HScroll extends StatefulWidget {
+  const _HScroll({required this.child});
+  final Widget child;
+
+  @override
+  State<_HScroll> createState() => _HScrollState();
+}
+
+class _HScrollState extends State<_HScroll> {
+  final _controller = ScrollController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scrollbar(
+      controller: _controller,
+      thumbVisibility: true,
+      trackVisibility: true,
+      interactive: true,
+      child: SingleChildScrollView(
+        controller: _controller,
+        scrollDirection: Axis.horizontal,
+        // Leaves room so the bar does not cover the last row.
+        padding: const EdgeInsets.only(bottom: 12),
+        child: widget.child,
+      ),
     );
   }
 }
