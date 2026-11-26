@@ -110,6 +110,7 @@ class ApiClient {
     String path,
     Map<String, String> fields, {
     bool auth = true,
+    Duration? receiveTimeout,
   }) => _send(
     () async => dio.post(
       absolute(path),
@@ -117,6 +118,8 @@ class ApiClient {
       options: Options(
         headers: auth ? await authHeaders() : const {},
         contentType: Headers.formUrlEncodedContentType,
+        // Reindexing and similar maintenance can run for minutes.
+        receiveTimeout: receiveTimeout,
       ),
     ),
   );

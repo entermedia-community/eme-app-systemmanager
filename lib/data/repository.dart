@@ -134,6 +134,9 @@ class ActionResult {
   }
 }
 
+/// Reindex, reset lists, snapshots and the like can take several minutes.
+const longRunning = Duration(minutes: 30);
+
 class SettingsRepository {
   SettingsRepository(this.api);
   final ApiClient api;
@@ -226,8 +229,11 @@ class SettingsRepository {
   Future<ActionResult> deleteTable(String name) =>
       _action('settings/datamanager/table/deletetable', {'searchtype': name});
 
-  Future<ActionResult> reindexTable(String name) =>
-      _action('settings/datamanager/table/reindex', {'searchtype': name});
+  Future<ActionResult> reindexTable(String name) => _action(
+    'settings/datamanager/table/reindex',
+    {'searchtype': name},
+    longRunning,
+  );
 
   Future<List<FieldDef>> fields(String searchType) async {
     final res = await api.getJson(
@@ -273,8 +279,9 @@ class SettingsRepository {
   Future<ActionResult> _action(
     String path, [
     Map<String, String> fields = const {},
+    Duration? timeout,
   ]) async {
-    final res = await api.postForm(path, fields);
+    final res = await api.postForm(path, fields, receiveTimeout: timeout);
     final r = res['response'];
     final status = r is Map
         ? '${r['status'] ?? 'ok'}'
@@ -283,14 +290,19 @@ class SettingsRepository {
   }
 
   Future<ActionResult> clearCaches() => _action('system/cleardatacache');
-  Future<ActionResult> reindexAll() => _action('server/reindex');
-  Future<ActionResult> saveAllModules() => _action('system/savemodules');
-  Future<ActionResult> reloadLists() => _action('system/reloadlists');
-  Future<ActionResult> makeMaster() => _action('system/makemaster');
+  Future<ActionResult> reindexAll() =>
+      _action('server/reindex', const {}, longRunning);
+  Future<ActionResult> saveAllModules() =>
+      _action('system/savemodules', const {}, longRunning);
+  Future<ActionResult> reloadLists() =>
+      _action('system/reloadlists', const {}, longRunning);
+  Future<ActionResult> makeMaster() =>
+      _action('system/makemaster', const {}, longRunning);
   Future<ActionResult> toggleSearchLogs() => _action('system/togglesearchlogs');
-  Future<ActionResult> createSnapshot() => _action('system/snapshotcreate');
+  Future<ActionResult> createSnapshot() =>
+      _action('system/snapshotcreate', const {}, longRunning);
   Future<ActionResult> restoreSnapshot(String id) =>
-      _action('system/snapshotrestore', {'id': id});
+      _action('system/snapshotrestore', {'id': id}, longRunning);
 
   Future<Json> serverInfo() => api.getJson('system/serverinfo');
 
