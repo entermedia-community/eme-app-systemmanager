@@ -337,6 +337,37 @@ class SettingsRepository {
     });
   }
 
+  /// Saves property changes of one field. [payload] is a record payload: `id` -> value,
+  /// or `id.lang` -> text for multilanguage fields.
+  Future<void> saveField(
+    String table,
+    String fieldId,
+    Map<String, Object?> payload,
+  ) async {
+    final form = <String, Object>{'searchtype': table, 'id': fieldId};
+    final ids = <String>{};
+    for (final e in payload.entries) {
+      final v = e.value;
+      final dot = e.key.indexOf('.');
+      // `name.en` is a language value of `name`; anything else is the field's own value.
+      final base = dot < 0 ? e.key : e.key.substring(0, dot);
+      ids.add(base);
+      final param = dot < 0 ? '${e.key}.value' : e.key;
+      form[param] = v is List ? [for (final x in v) '$x'] : '${v ?? ''}';
+    }
+    form['field'] = ids.toList();
+    await api.postForm('settings/datamanager/fields/save', form);
+  }
+
+  /// Ids of the fields the server's field editor shows: the basic ones, then the advanced ones.
+  Future<({List<String> basic, List<String> advanced})> fieldEditView() async {
+    final res = await api.getJson('settings/datamanager/fields/editview');
+    List<String> ids(Object? v) => [
+      for (final x in v is List ? v : const []) '$x',
+    ];
+    return (basic: ids(res['basic']), advanced: ids(res['advanced']));
+  }
+
   Future<void> removeField(String table, String fieldId) async {
     await api.postForm('settings/datamanager/fields/remove', {
       'searchtype': table,

@@ -108,7 +108,7 @@ class ApiClient {
 
   Future<Map<String, dynamic>> postForm(
     String path,
-    Map<String, String> fields, {
+    Map<String, Object> fields, {
     bool auth = true,
     Duration? receiveTimeout,
   }) => _send(

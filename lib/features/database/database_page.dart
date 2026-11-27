@@ -447,6 +447,39 @@ class _FieldsTab extends ConsumerWidget {
     ref.invalidate(tableFieldsProvider(table));
   }
 
+  Future<void> _edit(BuildContext context, WidgetRef ref, FieldDef f) async {
+    final List<FieldDef> fields;
+    final List<FieldDef> advanced;
+    try {
+      final props = await ref.read(
+        tableFieldsProvider('propertydetail').future,
+      );
+      final view = await ref.read(repositoryProvider).fieldEditView();
+      // The same fields, in the same order, as the web field editor.
+      List<FieldDef> pick(List<String> ids) => [
+        for (final id in ids)
+          for (final p in props)
+            if (p.id == id && id != 'id' && !p.isComplex) p,
+      ];
+      fields = pick(view.basic);
+      advanced = pick(view.advanced);
+    } catch (e) {
+      if (context.mounted) showMessage(context, '$e', error: true);
+      return;
+    }
+    if (!context.mounted) return;
+    final saved = await showRecordDialog(
+      context,
+      title: 'Edit field ${f.id}',
+      fields: fields,
+      advancedFields: advanced,
+      initial: f.raw,
+      onSave: (payload) =>
+          ref.read(repositoryProvider).saveField(table, f.id, payload),
+    );
+    if (saved) ref.invalidate(tableFieldsProvider(table));
+  }
+
   Future<void> _remove(BuildContext context, WidgetRef ref, FieldDef f) async {
     final ok = await confirm(
       context,
@@ -466,8 +499,7 @@ class _FieldsTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final fields = ref.watch(tableFieldsProvider(table));
     return SectionPage(
-      subtitle:
-          'Editing a field\'s type and view layout is not available here yet.',
+      subtitle: 'Use the pencil to edit a field\'s properties.',
       actions: [
         FilledButton.icon(
           onPressed: () => _add(context, ref),
@@ -501,14 +533,28 @@ class _FieldsTab extends ConsumerWidget {
             TableColumn(
               'x',
               '',
-              flex: 1,
+              width: 110,
               sortable: false,
               cell: (c, r) => Align(
                 alignment: Alignment.centerRight,
-                child: IconButton(
-                  tooltip: 'Remove field',
-                  icon: Icon(Ph.trash, size: 16, color: c.colors.muted),
-                  onPressed: () => _remove(c, ref, FieldDef(r)),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      tooltip: 'Edit field',
+                      icon: Icon(
+                        Ph.pencilSimple,
+                        size: 16,
+                        color: c.colors.muted,
+                      ),
+                      onPressed: () => _edit(c, ref, FieldDef(r)),
+                    ),
+                    IconButton(
+                      tooltip: 'Remove field',
+                      icon: Icon(Ph.trash, size: 16, color: c.colors.muted),
+                      onPressed: () => _remove(c, ref, FieldDef(r)),
+                    ),
+                  ],
                 ),
               ),
             ),

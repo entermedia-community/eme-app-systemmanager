@@ -17,6 +17,7 @@ Future<bool> showRecordDialog(
   Future<void> Function()? onDelete,
   String deleteMessage = 'This cannot be undone.',
   List<Widget> extra = const [],
+  List<FieldDef> advancedFields = const [],
 }) async {
   final saved = await showDialog<bool>(
     context: context,
@@ -28,6 +29,7 @@ Future<bool> showRecordDialog(
       onDelete: onDelete,
       deleteMessage: deleteMessage,
       extra: extra,
+      advancedFields: advancedFields,
     ),
   );
   return saved ?? false;
@@ -43,9 +45,13 @@ class RecordDialog extends ConsumerStatefulWidget {
     this.onDelete,
     this.deleteMessage = 'This cannot be undone.',
     this.extra = const [],
+    this.advancedFields = const [],
   });
   final String title;
   final List<FieldDef> fields;
+
+  /// Fields tucked under a collapsed "Advanced Settings" section.
+  final List<FieldDef> advancedFields;
   final Json? initial;
   final Future<void> Function(Map<String, Object?> payload) onSave;
   final Future<void> Function()? onDelete;
@@ -60,7 +66,8 @@ class RecordDialog extends ConsumerStatefulWidget {
 
 class _RecordDialogState extends ConsumerState<RecordDialog> {
   late final List<FieldValue> _values = [
-    for (final f in widget.fields) FieldValue(f, widget.initial?[f.id]),
+    for (final f in [...widget.fields, ...widget.advancedFields])
+      FieldValue(f, widget.initial?[f.id]),
   ];
   var _busy = false;
   String? _error;
@@ -108,10 +115,33 @@ class _RecordDialogState extends ConsumerState<RecordDialog> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
             children: [
-              for (final v in _values)
+              for (final v in _values.take(widget.fields.length))
                 Padding(
                   padding: const EdgeInsets.only(bottom: 14),
                   child: FieldInput(value: v, onChanged: () => setState(() {})),
+                ),
+              if (widget.advancedFields.isNotEmpty)
+                Theme(
+                  data: Theme.of(context)
+                      .copyWith(dividerColor: Colors.transparent),
+                  child: ExpansionTile(
+                    tilePadding: EdgeInsets.zero,
+                    childrenPadding: const EdgeInsets.only(bottom: 4),
+                    title: const Text(
+                      'Advanced Settings',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    children: [
+                      for (final v in _values.skip(widget.fields.length))
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 14),
+                          child: FieldInput(
+                            value: v,
+                            onChanged: () => setState(() {}),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ...widget.extra,
               if (_error != null)

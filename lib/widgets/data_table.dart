@@ -13,9 +13,14 @@ class TableColumn {
     this.cell,
     this.sortable = true,
     this.minWidth = 120,
+    this.width,
   });
+
   final String id;
   final double minWidth;
+
+  /// Fixed width instead of a share of the row (action columns).
+  final double? width;
   final String label;
   final int flex;
   final bool sortable;
@@ -71,7 +76,10 @@ class SettingsTable extends StatelessWidget {
                 // Columns keep a minimum width; the table scrolls sideways past that.
                 final need =
                     28.0 +
-                    columns.fold<double>(0, (n, col) => n + col.minWidth);
+                    columns.fold<double>(
+                      0,
+                      (n, col) => n + (col.width ?? col.minWidth),
+                    );
                 final table = Column(
                   children: [
                     Container(
@@ -83,8 +91,8 @@ class SettingsTable extends StatelessWidget {
                       child: Row(
                         children: [
                           for (final col in columns)
-                            Expanded(
-                              flex: col.flex,
+                            _Col(
+                              col: col,
                               child: InkWell(
                                 onTap: onSort != null && col.sortable
                                     ? () => onSort!(col.id)
@@ -136,8 +144,8 @@ class SettingsTable extends StatelessWidget {
                               child: Row(
                                 children: [
                                   for (final col in columns)
-                                    Expanded(
-                                      flex: col.flex,
+                                    _Col(
+                                      col: col,
                                       child: col.cell != null
                                           ? col.cell!(context, row)
                                           : Text(
@@ -228,4 +236,16 @@ class _HScrollState extends State<_HScroll> {
       ),
     );
   }
+}
+
+/// A column slot: a share of the row, or a fixed width.
+class _Col extends StatelessWidget {
+  const _Col({required this.col, required this.child});
+  final TableColumn col;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => col.width != null
+      ? SizedBox(width: col.width, child: child)
+      : Expanded(flex: col.flex, child: child);
 }
