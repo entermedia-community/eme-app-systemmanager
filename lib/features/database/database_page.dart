@@ -470,36 +470,23 @@ class _FieldsTab extends ConsumerWidget {
     if (!context.mounted) return;
     final saved = await showRecordDialog(
       context,
-      title: 'Edit field ${f.id}',
+      title: 'Field ${f.id}',
       fields: fields,
       advancedFields: advanced,
       initial: f.raw,
       onSave: (payload) =>
           ref.read(repositoryProvider).saveField(table, f.id, payload),
+      onDelete: () => ref.read(repositoryProvider).removeField(table, f.id),
+      deleteMessage: 'The field is hidden from this table. Existing data stays in the index.',
     );
     if (saved) ref.invalidate(tableFieldsProvider(table));
-  }
-
-  Future<void> _remove(BuildContext context, WidgetRef ref, FieldDef f) async {
-    final ok = await confirm(
-      context,
-      title: 'Remove field ${f.id}?',
-      message: 'The field is hidden from this table. Existing data stays in the index.',
-      action: 'Remove',
-    );
-    if (!ok || !context.mounted) return;
-    await runServerAction(context, () async {
-      await ref.read(repositoryProvider).removeField(table, f.id);
-      return '';
-    }, success: 'Field removed');
-    ref.invalidate(tableFieldsProvider(table));
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final fields = ref.watch(tableFieldsProvider(table));
     return SectionPage(
-      subtitle: 'Use the pencil to edit a field\'s properties.',
+      subtitle: 'Click a field to edit its properties or delete it.',
       actions: [
         FilledButton.icon(
           onPressed: () => _add(context, ref),
@@ -530,36 +517,9 @@ class _FieldsTab extends ConsumerWidget {
               sortable: false,
               cell: (_, r) => Text(FieldDef(r).datatype),
             ),
-            TableColumn(
-              'x',
-              '',
-              width: 110,
-              sortable: false,
-              cell: (c, r) => Align(
-                alignment: Alignment.centerRight,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      tooltip: 'Edit field',
-                      icon: Icon(
-                        Ph.pencilSimple,
-                        size: 16,
-                        color: c.colors.muted,
-                      ),
-                      onPressed: () => _edit(c, ref, FieldDef(r)),
-                    ),
-                    IconButton(
-                      tooltip: 'Remove field',
-                      icon: Icon(Ph.trash, size: 16, color: c.colors.muted),
-                      onPressed: () => _remove(c, ref, FieldDef(r)),
-                    ),
-                  ],
-                ),
-              ),
-            ),
           ],
           rows: [for (final f in list) f.raw],
+          onTap: (r) => _edit(context, ref, FieldDef(r)),
           total: list.length,
           rowKey: (r) => '${r['id']}',
         ),

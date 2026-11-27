@@ -134,6 +134,9 @@ class _RecordDialogState extends ConsumerState<RecordDialog>
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
+      // Anchored to the top so the tab bar stays put when a tab is shorter or taller.
+      alignment: Alignment.topCenter,
+      insetPadding: const EdgeInsets.fromLTRB(24, 56, 24, 24),
       title: Text(widget.title),
       content: SizedBox(
         width: 520,
