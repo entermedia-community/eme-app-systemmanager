@@ -50,7 +50,7 @@ class RecordDialog extends ConsumerStatefulWidget {
   final String title;
   final List<FieldDef> fields;
 
-  /// Fields tucked under a collapsed "Advanced Settings" section.
+  /// Fields shown on a second "Advanced" tab.
   final List<FieldDef> advancedFields;
   final Json? initial;
   final Future<void> Function(Map<String, Object?> payload) onSave;
@@ -64,7 +64,19 @@ class RecordDialog extends ConsumerStatefulWidget {
   ConsumerState<RecordDialog> createState() => _RecordDialogState();
 }
 
-class _RecordDialogState extends ConsumerState<RecordDialog> {
+class _RecordDialogState extends ConsumerState<RecordDialog>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabs = TabController(
+    length: widget.advancedFields.isEmpty ? 1 : 2,
+    vsync: this,
+  )..addListener(() => setState(() {}));
+
+  @override
+  void dispose() {
+    _tabs.dispose();
+    super.dispose();
+  }
+
   late final List<FieldValue> _values = [
     for (final f in [...widget.fields, ...widget.advancedFields])
       FieldValue(f, widget.initial?[f.id]),
@@ -110,50 +122,54 @@ class _RecordDialogState extends ConsumerState<RecordDialog> {
       title: Text(widget.title),
       content: SizedBox(
         width: 520,
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (final v in _values.take(widget.fields.length))
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 14),
-                  child: FieldInput(value: v, onChanged: () => setState(() {})),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (widget.advancedFields.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 14),
+                child: TabBar(
+                  controller: _tabs,
+                  tabs: const [
+                    Tab(text: 'Basic'),
+                    Tab(text: 'Advanced'),
+                  ],
                 ),
-              if (widget.advancedFields.isNotEmpty)
-                Theme(
-                  data: Theme.of(context)
-                      .copyWith(dividerColor: Colors.transparent),
-                  child: ExpansionTile(
-                    tilePadding: EdgeInsets.zero,
-                    childrenPadding: const EdgeInsets.only(bottom: 4),
-                    title: const Text(
-                      'Advanced Settings',
-                      style: TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    children: [
-                      for (final v in _values.skip(widget.fields.length))
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 14),
-                          child: FieldInput(
-                            value: v,
-                            onChanged: () => setState(() {}),
-                          ),
+              ),
+            Flexible(
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Both tabs' values live in _values, so switching tabs keeps edits.
+                    for (final v
+                        in _tabs.index == 0
+                            ? _values.take(widget.fields.length)
+                            : _values.skip(widget.fields.length))
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 14),
+                        child: FieldInput(
+                          key: ObjectKey(v),
+                          value: v,
+                          onChanged: () => setState(() {}),
                         ),
-                    ],
-                  ),
+                      ),
+                    if (_tabs.index == 0) ...widget.extra,
+                    if (_error != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          _error!,
+                          style: TextStyle(color: context.scheme.error),
+                        ),
+                      ),
+                  ],
                 ),
-              ...widget.extra,
-              if (_error != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Text(
-                    _error!,
-                    style: TextStyle(color: context.scheme.error),
-                  ),
-                ),
-            ],
-          ),
+              ),
+            ),
+          ],
         ),
       ),
       actions: [
