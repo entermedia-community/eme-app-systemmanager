@@ -160,6 +160,22 @@ class _Sidebar extends ConsumerWidget {
               ),
             const Spacer(),
             const Divider(height: 1),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
+              child: Text(
+                'SWITCH MANAGERS',
+                style: TextStyle(
+                  fontSize: 11,
+                  letterSpacing: 1.2,
+                  fontWeight: FontWeight.w700,
+                  color: c.muted,
+                ),
+              ),
+            ),
+            for (final m in _managers)
+              _ManagerLink(manager: m, active: m.label == 'System Manager'),
+            const SizedBox(height: 6),
+            const Divider(height: 1),
             ListTile(
               dense: true,
               leading: Icon(dark ? Ph.sun : Ph.moonStars, size: 18),
@@ -228,6 +244,62 @@ class _Item extends StatelessWidget {
                 Expanded(
                   child: Text(
                     section.label,
+                    style: TextStyle(
+                      fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                      color: active ? accent : null,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Manager {
+  const _Manager(this.label, this.icon, this.href);
+  final String label;
+  final IconData icon;
+  final String href;
+}
+
+// All links point to '#' for now.
+const _managers = [
+  _Manager('System Manager', Ph.gear, '#'),
+  _Manager('Data Manager', Ph.database, '#'),
+  _Manager('Job Manager', Ph.listChecks, '#'),
+];
+
+class _ManagerLink extends StatelessWidget {
+  const _ManagerLink({required this.manager, required this.active});
+  final _Manager manager;
+  final bool active;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final accent = context.scheme.primary;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+      child: Material(
+        color: active ? c.accentSoft : Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          hoverColor: c.subtle,
+          onTap: active ? null : () {}, // href '#': no navigation yet
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+            child: Row(
+              children: [
+                Icon(manager.icon, size: 18, color: active ? accent : c.muted),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    manager.label,
                     style: TextStyle(
                       fontWeight: active ? FontWeight.w700 : FontWeight.w500,
                       color: active ? accent : null,
