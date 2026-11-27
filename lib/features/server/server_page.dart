@@ -86,7 +86,7 @@ class ServerPage extends ConsumerWidget {
                 icon: Ph.broom,
                 label: 'Clear cached data',
                 hint: 'Safe. Server caches are rebuilt on demand.',
-                tone: _Tone.neutral,
+                tone: _Tone.tonal,
                 onTap: () => _act(
                   context,
                   ref,
@@ -109,7 +109,7 @@ class ServerPage extends ConsumerWidget {
                 icon: Ph.arrowsClockwise,
                 label: 'Reindex',
                 hint: 'Full rebuild of the search index. Can take a while.',
-                tone: _Tone.primary,
+                tone: _Tone.tonal,
                 onTap: () => _act(
                   context,
                   ref,
@@ -124,7 +124,7 @@ class ServerPage extends ConsumerWidget {
                 icon: Ph.warning,
                 label: 'View mapping conflicts',
                 hint: "If the reindex fails, conflicts may be found here",
-                tone: _Tone.tonal,
+                tone: _Tone.neutral,
                 onTap: () async {
                   showDialog<void>(
                     context: context,
@@ -136,7 +136,7 @@ class ServerPage extends ConsumerWidget {
                 icon: Ph.fileText,
                 label: 'View Elastic mappings',
                 hint: 'The full elastic database mappings',
-                tone: _Tone.tonal,
+                tone: _Tone.neutral,
                 onTap: () async {
                   showDialog<void>(
                     context: context,

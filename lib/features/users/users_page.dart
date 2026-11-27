@@ -67,6 +67,8 @@ class _UsersPageState extends ConsumerState<UsersPage> {
       },
       onDelete: id == null ? null : () => repo.delete(Store.users, id),
       deleteMessage: 'The user and their sign-in keys are removed.',
+      tabLabels: const ['Profile', 'Access'],
+      extraOnSecondTab: true,
       extra: [if (id != null) _UserAccess(userId: id)],
     );
     if (saved) ref.invalidate(recordsProvider);

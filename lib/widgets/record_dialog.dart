@@ -18,6 +18,8 @@ Future<bool> showRecordDialog(
   String deleteMessage = 'This cannot be undone.',
   List<Widget> extra = const [],
   List<FieldDef> advancedFields = const [],
+  List<String> tabLabels = const ['Basic', 'Advanced'],
+  bool extraOnSecondTab = false,
 }) async {
   final saved = await showDialog<bool>(
     context: context,
@@ -30,6 +32,8 @@ Future<bool> showRecordDialog(
       deleteMessage: deleteMessage,
       extra: extra,
       advancedFields: advancedFields,
+      tabLabels: tabLabels,
+      extraOnSecondTab: extraOnSecondTab,
     ),
   );
   return saved ?? false;
@@ -46,12 +50,23 @@ class RecordDialog extends ConsumerStatefulWidget {
     this.deleteMessage = 'This cannot be undone.',
     this.extra = const [],
     this.advancedFields = const [],
+    this.tabLabels = const ['Basic', 'Advanced'],
+    this.extraOnSecondTab = false,
   });
   final String title;
   final List<FieldDef> fields;
 
   /// Fields shown on a second "Advanced" tab.
   final List<FieldDef> advancedFields;
+
+  /// Names of the two tabs, shown when there is a second tab.
+  final List<String> tabLabels;
+
+  /// Put [extra] on the second tab instead of the first.
+  final bool extraOnSecondTab;
+
+  bool get hasTabs =>
+      advancedFields.isNotEmpty || (extraOnSecondTab && extra.isNotEmpty);
   final Json? initial;
   final Future<void> Function(Map<String, Object?> payload) onSave;
   final Future<void> Function()? onDelete;
@@ -67,7 +82,7 @@ class RecordDialog extends ConsumerStatefulWidget {
 class _RecordDialogState extends ConsumerState<RecordDialog>
     with SingleTickerProviderStateMixin {
   late final TabController _tabs = TabController(
-    length: widget.advancedFields.isEmpty ? 1 : 2,
+    length: widget.hasTabs ? 2 : 1,
     vsync: this,
   )..addListener(() => setState(() {}));
 
@@ -126,15 +141,12 @@ class _RecordDialogState extends ConsumerState<RecordDialog>
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (widget.advancedFields.isNotEmpty)
+            if (widget.hasTabs)
               Padding(
                 padding: const EdgeInsets.only(bottom: 14),
                 child: TabBar(
                   controller: _tabs,
-                  tabs: const [
-                    Tab(text: 'Basic'),
-                    Tab(text: 'Advanced'),
-                  ],
+                  tabs: [for (final l in widget.tabLabels) Tab(text: l)],
                 ),
               ),
             Flexible(
@@ -156,7 +168,8 @@ class _RecordDialogState extends ConsumerState<RecordDialog>
                           onChanged: () => setState(() {}),
                         ),
                       ),
-                    if (_tabs.index == 0) ...widget.extra,
+                    if ((_tabs.index == 1) == widget.extraOnSecondTab)
+                      ...widget.extra,
                     if (_error != null)
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
